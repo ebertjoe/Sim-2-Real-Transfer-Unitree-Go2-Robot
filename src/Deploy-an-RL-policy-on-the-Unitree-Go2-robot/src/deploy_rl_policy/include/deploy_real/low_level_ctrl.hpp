@@ -56,7 +56,11 @@ private:
     vector<double> q_init_=vector<double>(12,0);
     vector<double> kp=vector<double>(12,0);
     vector<double> kd=vector<double>(12,0);
-    vector<double> standing_angels_ = {-0.1, 0.8, -1.5, 0.1, 0.8, -1.5, -0.1, 1.0, -1.5, 0.1, 1, -1.5};
+    vector<double> standing_angels_ = {
+    0.176, 0.674, -1.795,   // FR (flip hip sign)
+    0.129, 0.739, -1.774,   // FL
+    0.124, 0.683, -1.280,   // RR (flip hip sign)
+    0.060, 0.688, -1.261};  // RL
     vector<double> laydown_angels_ = {
         -0.03252546489238739,
         1.263495683670044,
