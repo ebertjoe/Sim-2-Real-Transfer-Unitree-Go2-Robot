@@ -297,7 +297,7 @@ class MujocoSimulator(Node):
         self.create_subscription(Joy, "/joy", self._joy_cb, 10)
 
         # ── MuJoCo setup ───────────────────────────────────────────────────
-        self.xml_path = project_root / "resources" / "go2" / "scene_terrain.xml"
+        self.xml_path = project_root / "resources" / "go2" / "scene_flat.xml"
         self.foot_body_names = ["FR_foot", "FL_foot", "RR_foot", "RL_foot"]
         self.foot_body_ids = []
         self.calf_body_ids = []
