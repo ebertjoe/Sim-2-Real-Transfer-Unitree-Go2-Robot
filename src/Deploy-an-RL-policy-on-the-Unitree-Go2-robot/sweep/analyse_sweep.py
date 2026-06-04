@@ -470,17 +470,104 @@ def _save(fig, path: Path):
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
+def plot_comparison(df_m, df_i, out_dir: Path):
+    """Side-by-side MuJoCo vs Isaac comparison plots."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    loco = [g for g in GAIT_NAMES.values() if g != "stand"]
+
+    # ── 1. Survival rate bar chart ────────────────────────────────────────────
+    fig, ax = plt.subplots(figsize=(10, 4), constrained_layout=True)
+    sr_m = df_m.groupby("gait_name")["survived"].mean().reindex(
+        [GAIT_NAMES[g] for g in sorted(GAIT_NAMES) if GAIT_NAMES[g] != "stand"])
+    sr_i = df_i.groupby("gait_name")["survived"].mean().reindex(sr_m.index)
+    x = np.arange(len(sr_m))
+    w = 0.35
+    ax.bar(x - w/2, sr_m * 100, width=w, label="MuJoCo", color="#3498db", alpha=0.85)
+    ax.bar(x + w/2, sr_i * 100, width=w, label="Isaac",  color="#e74c3c", alpha=0.85)
+    ax.set_xticks(x); ax.set_xticklabels(sr_m.index, rotation=30, ha="right")
+    ax.set_ylabel("Survival rate (%)"); ax.set_ylim(0, 105)
+    ax.axhline(100, color="gray", linewidth=0.8, linestyle="--")
+    ax.legend(); ax.set_title("Survival rate — MuJoCo vs Isaac", fontweight="bold")
+    fig.savefig(out_dir / "C1_survival_rate.png", bbox_inches="tight")
+    plt.close(fig)
+    print(f"  saved → {out_dir}/C1_survival_rate.png")
+
+    # ── 2. Tracking error comparison ─────────────────────────────────────────
+    metrics = ["mean_vx_error", "mean_vy_error", "mean_wz_error"]
+    labels  = ["vx error (m/s)", "vy error (m/s)", "wz error (rad/s)"]
+    fig, axes = plt.subplots(1, 3, figsize=(14, 4), constrained_layout=True)
+    gaits = [GAIT_NAMES[g] for g in sorted(GAIT_NAMES) if GAIT_NAMES[g] != "stand"]
+    x = np.arange(len(gaits)); w = 0.35
+    for ax, metric, label in zip(axes, metrics, labels):
+        vm = df_m.groupby("gait_name")[metric].mean().reindex(gaits)
+        vi = df_i.groupby("gait_name")[metric].mean().reindex(gaits)
+        ax.bar(x - w/2, vm, width=w, label="MuJoCo", color="#3498db", alpha=0.85)
+        ax.bar(x + w/2, vi, width=w, label="Isaac",  color="#e74c3c", alpha=0.85)
+        ax.set_xticks(x); ax.set_xticklabels(gaits, rotation=30, ha="right")
+        ax.set_ylabel(label); ax.legend(fontsize=8)
+        ax.set_title(label, fontweight="bold")
+    fig.suptitle("Mean tracking errors — MuJoCo vs Isaac", fontweight="bold")
+    fig.savefig(out_dir / "C2_tracking_errors.png", bbox_inches="tight")
+    plt.close(fig)
+    print(f"  saved → {out_dir}/C2_tracking_errors.png")
+
+    # ── 3. Contact accuracy comparison ───────────────────────────────────────
+    fig, ax = plt.subplots(figsize=(10, 4), constrained_layout=True)
+    cm = df_m.groupby("gait_name")["mean_contact_acc"].mean().reindex(gaits)
+    ci = df_i.groupby("gait_name")["mean_contact_acc"].mean().reindex(gaits)
+    ax.bar(x - w/2, cm, width=w, label="MuJoCo", color="#3498db", alpha=0.85)
+    ax.bar(x + w/2, ci, width=w, label="Isaac",  color="#e74c3c", alpha=0.85)
+    ax.set_xticks(x); ax.set_xticklabels(gaits, rotation=30, ha="right")
+    ax.set_ylabel("Contact accuracy"); ax.set_ylim(0, 1.05)
+    ax.axhline(1.0, color="gray", linewidth=0.8, linestyle="--")
+    ax.legend(); ax.set_title("Contact accuracy — MuJoCo vs Isaac", fontweight="bold")
+    fig.savefig(out_dir / "C3_contact_accuracy.png", bbox_inches="tight")
+    plt.close(fig)
+    print(f"  saved → {out_dir}/C3_contact_accuracy.png")
+
+    # ── 4. Torque norm comparison ─────────────────────────────────────────────
+    fig, ax = plt.subplots(figsize=(10, 4), constrained_layout=True)
+    tm = df_m.groupby("gait_name")["mean_torque_norm"].mean().reindex(gaits)
+    ti = df_i.groupby("gait_name")["mean_torque_norm"].mean().reindex(gaits)
+    ax.bar(x - w/2, tm, width=w, label="MuJoCo", color="#3498db", alpha=0.85)
+    ax.bar(x + w/2, ti, width=w, label="Isaac",  color="#e74c3c", alpha=0.85)
+    ax.set_xticks(x); ax.set_xticklabels(gaits, rotation=30, ha="right")
+    ax.set_ylabel("Mean torque norm (N·m)")
+    ax.legend(); ax.set_title("Torque effort — MuJoCo vs Isaac", fontweight="bold")
+    fig.savefig(out_dir / "C4_torque_effort.png", bbox_inches="tight")
+    plt.close(fig)
+    print(f"  saved → {out_dir}/C4_torque_effort.png")
+
+    # ── 5. Summary table ──────────────────────────────────────────────────────
+    print(f"\n{'='*65}")
+    print("  MuJoCo vs Isaac — key metrics per gait")
+    print(f"{'='*65}")
+    cols = ["mean_vx_error","mean_vy_error","mean_contact_acc","mean_torque_norm"]
+    sm = df_m.groupby("gait_name")[cols].mean().reindex(gaits).round(3)
+    si = df_i.groupby("gait_name")[cols].mean().reindex(gaits).round(3)
+    sm.columns = [f"MuJoCo_{c}" for c in cols]
+    si.columns = [f"Isaac_{c}"  for c in cols]
+    combined = pd.concat([sm, si], axis=1)
+    # interleave columns
+    out_cols = []
+    for c in cols:
+        out_cols += [f"MuJoCo_{c}", f"Isaac_{c}"]
+    print(combined[out_cols].to_string())
+
+
 def parse_args():
     p = argparse.ArgumentParser(description="Analyse gait sweep results")
-    p.add_argument("--csv",     default="results/results_raw.csv",
-                   help="Path to results CSV (default: results/results_raw.csv)")
-    p.add_argument("--out-dir", default="results/plots",
+    p.add_argument("--csv",        default="results/results_raw.csv",
+                   help="Path to MuJoCo results CSV")
+    p.add_argument("--isaac-csv",  default=None,
+                   help="Path to Isaac results CSV (optional, enables comparison plots)")
+    p.add_argument("--out-dir",    default="results/plots",
                    help="Directory for output PNGs (default: results/plots)")
     return p.parse_args()
 
 
 def main():
-    args    = parse_args()
+    args     = parse_args()
     csv_path = Path(args.csv)
     out_dir  = Path(args.out_dir)
 
@@ -495,6 +582,7 @@ def main():
 
     df, errors = load(csv_path)
 
+    # Single-sim plots
     print("Generating plots...")
     plot_success_heatmaps(df, out_dir, palette)
     plot_tracking_heatmaps(df, out_dir)
@@ -503,8 +591,17 @@ def main():
     plot_contact_accuracy(df, out_dir, palette)
     plot_stand_stability(df, out_dir)
     plot_torque_effort(df, out_dir, palette)
-
     print_summary_tables(df)
+
+    # Comparison plots (if Isaac CSV provided)
+    if args.isaac_csv:
+        isaac_path = Path(args.isaac_csv)
+        if not isaac_path.exists():
+            print(f"[warning] Isaac CSV not found: {isaac_path} — skipping comparison")
+        else:
+            df_i, _ = load(isaac_path)
+            print("\nGenerating comparison plots...")
+            plot_comparison(df, df_i, out_dir)
 
     print(f"\nAll plots saved to: {out_dir}\n")
 

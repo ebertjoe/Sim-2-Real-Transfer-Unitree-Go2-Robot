@@ -139,6 +139,11 @@ def plot_failure_phases(dfs: dict, out_dir: Path):
 
     for ax, (sim_name, df) in zip(axes, dfs.items()):
         failed = df[~df["survived"]]
+        if len(failed) == 0:
+            ax.text(0.5, 0.5, f"{sim_name}\nNo failures", ha="center", va="center",
+                    transform=ax.transAxes, fontsize=12)
+            ax.set_title(f"{sim_name} — failure phase breakdown", fontsize=10, fontweight="bold")
+            continue
         counts = (
             failed.groupby(["gait_from_name","termination_reason"])
                   .size()
@@ -146,6 +151,11 @@ def plot_failure_phases(dfs: dict, out_dir: Path):
         )
         cols = [c for c in ["fall_phase1","fall_transition","fall_phase2"]
                 if c in counts.columns]
+        if not cols:
+            ax.text(0.5, 0.5, f"{sim_name}\nNo failures", ha="center", va="center",
+                    transform=ax.transAxes, fontsize=12)
+            ax.set_title(f"{sim_name} — failure phase breakdown", fontsize=10, fontweight="bold")
+            continue
         colors = {"fall_phase1":"#e74c3c",
                   "fall_transition":"#e67e22",
                   "fall_phase2":"#3498db"}
