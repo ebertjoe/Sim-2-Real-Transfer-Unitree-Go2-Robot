@@ -28,13 +28,13 @@ OBS_CLIP       = 100.0
 
 GAIT_SCHEDULE = [
     (100, 6, [0.0, 0.0, 0.0]),  # trot at 0.5 m/s
-    (300, 4, [0.2, 0.0, 0.0]),
-    (300, 4, [0.4, 0.1, 0.0]),
-    (300, 4, [0.6, 0.2, 0.0]),
-    (300, 4, [0.8, 0.3, 0.0]),
-    (300, 4, [1.0, 0.3, 0.0]),
-    (300, 4, [1.2, 0.4, 0.0]),
-    (99999, 4, [1.2, 0.4, 0.0]),
+    (300, 7, [0.2, 0.0, 0.0]),
+    (300, 7, [0.4, 0.1, 0.0]),
+    (300, 7, [0.6, 0.2, 0.0]),
+    (300, 7, [0.8, 0.3, 0.0]),
+    (300, 7, [1.0, 0.3, 0.0]),
+    (300, 7, [1.2, 0.4, 0.0]),
+    (99999, 7, [1.2, 0.4, 0.0]),
 ]
 
 # ── Joint order mapping ───────────────────────────────────────────────────────
@@ -494,44 +494,15 @@ class MujocoSimulator(Node):
                 ("refFootX",       gait_obs["refFootX"]),
                 ("refFootY",       gait_obs["refFootY"]),
             ]
-            for name, val in labels:
-                print(f"  {name:16s} min={val.min():+.3f} max={val.max():+.3f} "
-                      f"vals={np.round(val, 3)}")
-            print(f"  q_wxyz: {np.round(q_wxyz, 4)}")
-            print(f"  t_exec={self.raibert._t_exec:.4f}s  "
-                  f"phase_comp={self.raibert._phase_compensation:.4f}s  "
-                  f"period_blended={self.raibert._period_blended:.4f}  "
-                  f"znom_blended={self.raibert._znom_blended:.4f}")
-            print(f"  p_ref_B: {self.raibert.get_p_ref_B().round(4).tolist()}")
-            print("===================================\n")
 
-        if 0 <= self._step_count < 20:
-            print(
-                f"[s{self._step_count:02d}] "
-                f"h={base_height[0]:.3f} "
-                f"grav=[{proj_grav[0]:+.3f},{proj_grav[1]:+.3f},{proj_grav[2]:+.3f}] "
-                f"w=[{ang_vel_b[0]:+.3f},{ang_vel_b[1]:+.3f},{ang_vel_b[2]:+.3f}] "
-                f"desC={gait_obs['desFeetContact'].astype(int).tolist()} "
-                f"refZ=[{' '.join(f'{v:+.3f}' for v in gait_obs['refFootZ'])}]"
-            )
-
-        if 300 <= self._step_count < 350:
-            print(
-                f"refX=[{' '.join(f'{v:+.3f}' for v in gait_obs['refFootX'])}] "
-                f"refY=[{' '.join(f'{v:+.3f}' for v in gait_obs['refFootY'])}] "
-                f"refZ=[{' '.join(f'{v:+.3f}' for v in gait_obs['refFootZ'])}]"
-            )
-
-        if self._step_count == 100:
-            print("\n=== SETTLED POSE (step 100) ===")
-            print(f"joint_pos (internal): {joint_pos.round(3).tolist()}")
-            print(f"joint_pos (mujoco):   {joint_pos_mujoco.round(3).tolist()}")
-            print(f"height:    {base_height[0]:.3f}")
-            print(f"grav:      {proj_grav.round(3).tolist()}")
-            print("=== END ===\n")
 
         if self._step_count % 50 == 0:
-            print(f"[step {self._step_count}] gait={GAIT_TABLE[gait_id]['name']} vel_cmd={vel_cmd}")
+            print(f"[step {self._step_count:4d}] "
+                f"gait={GAIT_TABLE[gait_id]['name']}  "
+                f"v_cmd=[{vel_cmd[0]:+.2f},{vel_cmd[1]:+.2f}]  "
+                f"v_gt=[{lin_vel_b[0]:+.2f},{lin_vel_b[1]:+.2f}]  "
+                f"v_diff=[{lin_vel_b[0]-vel_cmd[0]:+.2f},{lin_vel_b[1]-vel_cmd[1]:+.2f}]  "
+                f"h={float(self.d.qpos[2]):.3f}")
 
         # ── Assemble observation (joint arrays are now in Isaac internal order) ─
         obs = np.concatenate([
@@ -549,27 +520,6 @@ class MujocoSimulator(Node):
             gait_obs["refFootX"],            # 4
             gait_obs["refFootY"],            # 4
         ], dtype=np.float32)                 # total = 69
-
-        if self._step_count % 100 == 0:
-            print(f"step={self._step_count} gait={GAIT_TABLE[gait_id]['name']} "
-                  f"h={base_height[0]:.3f} grav={proj_grav.round(3)} "
-                  f"period_b={self.raibert._period_blended:.3f} "
-                  f"znom_b={self.raibert._znom_blended:.3f} "
-                  f"desC={gait_obs['desFeetContact'].astype(int).tolist()}")
-            print(f"  joint_pos (mujoco)   : {joint_pos_mujoco.round(3).tolist()}")
-            print(f"  joint_pos (internal) : {joint_pos.round(3).tolist()}")
-            print(f"  joint_vel (internal) : {joint_vel.round(3).tolist()}")
-            print(f"  default   (internal) : {DEFAULT_JOINT_POS_INTERNAL.round(3).tolist()}")
-            print(f"  jp_error  (internal) : {(joint_pos - DEFAULT_JOINT_POS_INTERNAL).round(3).tolist()}")
-            print(f"  foot_z_w: {np.array([self.d.xpos[bid][2] for bid in self.foot_body_ids]).round(4)}")
-            print(f"  ncon: {int(self.d.ncon)}")
-            for con in range(int(self.d.ncon)):
-                c = self.d.contact[con]
-                b1 = self.m.geom_bodyid[c.geom1]
-                b2 = self.m.geom_bodyid[c.geom2]
-                n1 = mujoco.mj_id2name(self.m, mujoco.mjtObj.mjOBJ_BODY, b1)
-                n2 = mujoco.mj_id2name(self.m, mujoco.mjtObj.mjOBJ_BODY, b2)
-                print(f"    contact {con}: {n1} vs {n2}")
 
         obs_clipped = np.clip(obs, -OBS_CLIP, OBS_CLIP)
 
@@ -607,38 +557,6 @@ class MujocoSimulator(Node):
             }
             isaac_action = [-1.0837, 0.9025, -0.1029, -0.1647, -0.4976, -0.0629, -1.4143, -1.7925, -0.1626, -0.0024, 1.2642, 1.1465]
 
-            print("\n" + "="*70)
-            print("POLICY STEP 0 — OBS COMPARISON (MuJoCo vs Isaac steady state)")
-            print("="*70)
-            idx = 0
-            for name, size in names_sizes:
-                mj_vals  = obs_np[idx:idx+size]
-                ref_vals = np.array(isaac[name])
-                diff     = mj_vals - ref_vals
-                max_diff = float(np.abs(diff).max())
-                flag     = " <<<" if max_diff > 0.05 else ""
-                print(f"\n  {name} (max_diff={max_diff:.4f}){flag}")
-                print(f"    MuJoCo : {np.round(mj_vals, 4).tolist()}")
-                print(f"    Isaac  : {np.round(ref_vals, 4).tolist()}")
-                print(f"    diff   : {np.round(diff, 4).tolist()}")
-                idx += size
-
-            # Action is in Isaac internal order
-            int_names = ['FL_hip','FR_hip','RL_hip','RR_hip',
-                         'FL_thigh','FR_thigh','RL_thigh','RR_thigh',
-                         'FL_calf','FR_calf','RL_calf','RR_calf']
-            print("\n" + "="*70)
-            print("ACTION COMPARISON (Isaac internal order)")
-            print("="*70)
-            print(f"  {'Joint':<12} {'Isaac':>8} {'MuJoCo':>8} {'Diff':>8}")
-            print("  " + "-"*40)
-            for n, a, e in zip(int_names, action_np, isaac_action):
-                flag = " <<<" if abs(a-e) > 0.1 else ""
-                print(f"  {n:<12} {e:>8.4f} {a:>8.4f} {a-e:>8.4f}{flag}")
-            print("="*70 + "\n")
-
-        if 0 <= self._step_count < 20:
-            print(f"       act=[{' '.join(f'{v:+.3f}' for v in action_raw)}]")
 
         # ── Compute target positions and apply to MuJoCo ─────────────────────
         # action_raw is in Isaac internal order.
@@ -747,31 +665,6 @@ class MujocoSimulator(Node):
         contact_msg = Float32MultiArray()
         contact_msg.data = foot_contact.tolist()
         self.foot_contact_pub.publish(contact_msg)
-
-        self.debug_count += 1
-        if self.debug_count % 200 == 0:
-            torque_sensor = self.d.sensordata[24:36].copy()
-            torque_norm = float(np.linalg.norm(torque_sensor))
-            print(f"height={base_height:.3f}  "
-                f"lin_vel={np.round(lin_vel_b, 3).tolist()}  "
-                f"contact={foot_contact.tolist()}  "
-                f"torque_norm={torque_norm:.2f}  "
-                f"torques={np.round(torque_sensor, 2).tolist()}")
-            base_xpos_id = mujoco.mj_name2id(self.m, mujoco.mjtObj.mjOBJ_BODY, "base_link")
-            base_pos = self.d.xpos[base_xpos_id].copy()
-            base_quat = self.d.xquat[base_xpos_id].copy()
-            R = np.zeros(9)
-            mujoco.mju_quat2Mat(R, base_quat)
-            R = R.reshape(3, 3)
-            foot_names = ["FR_foot", "FL_foot", "RR_foot", "RL_foot"]
-            print(f"[MUJOCO Body-Frame Foot Debug]")
-            print(f"{'Leg':<6} | {'Real_Foot_B (x,y,z)':<30}")
-            print("-" * 45)
-            for name in foot_names:
-                bid = mujoco.mj_name2id(self.m, mujoco.mjtObj.mjOBJ_BODY, name)
-                rel = self.d.xpos[bid] - base_pos
-                foot_b = R.T @ rel
-                print(f"  {name}: {np.round(foot_b, 3).tolist()}")
 
     def stop_simulation(self):
         self.running = False

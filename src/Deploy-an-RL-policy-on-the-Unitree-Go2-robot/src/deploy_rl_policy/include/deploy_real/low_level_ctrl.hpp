@@ -75,10 +75,10 @@ private:
     //   RR: hip= 0.1, thigh=1.0, calf=-1.5
     //   RL: hip=-0.1, thigh=1.0, calf=-1.5
     vector<double> standing_angels_ = {
-    0.176, 0.674, -1.795,   // FR (flip hip sign)
-    0.129, 0.739, -1.774,   // FL
-    0.124, 0.683, -1.280,   // RR (flip hip sign)
-    0.060, 0.688, -1.261};  // RL
+     0.1, 0.8, -1.5,   // FR
+    -0.1, 0.8, -1.5,   // FL
+     0.1, 1.0, -1.5,   // RR
+    -0.1, 1.0, -1.5};  // RL
     
     vector<double> laydown_angels_ = {
         -0.03252546489238739,  1.263495683670044,  -2.8056771755218506,
